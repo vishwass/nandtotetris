@@ -1,0 +1,65 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/3/a/RAM8.hdl
+/**
+ * Memory of eight 16-bit registers.
+ * If load is asserted, the value of the register selected by
+ * address is set to in; Otherwise, the value does not change.
+ * The value of the selected register is emitted by out.
+ */
+CHIP RAM8 {
+    IN in[16], load, address[3];
+    OUT out[16];
+
+    PARTS:
+
+    Not(in= address[0], out= a0not);
+    Not(in= address[1], out= a1not);
+    Not(in= address[2], out= a2not);
+
+    And(a= a0not, b= a1not, out= s01);
+    And(a= s01, b= a2not, out= s02);
+    And(a= s02, b= load, out= s0);
+    Register(in= in, load= s0 , out= out0);
+
+    And(a= address[0], b= a1not, out= s11);
+    And(a= s11, b= a2not, out= s12);
+    And(a= s12, b= load, out= s1);
+    Register(in= in, load= s1 , out= out1);
+
+
+    And(a= a0not, b= address[1], out= s21);
+    And(a= s21, b= a2not, out= s22); 
+    And(a= s22, b= load, out= s2);   
+    Register(in= in, load= s2 , out= out2);
+
+    And(a= address[0], b= address[1], out= s31);
+    And(a= s31, b= a2not, out= s32);
+    And(a= s32, b= load, out= s3);   
+    Register(in= in, load= s3 , out= out3);
+
+
+    And(a= a0not, b= a1not, out= s41);
+    And(a= s41, b= address[2], out= s42);
+    And(a= s42, b= load, out= s4);
+    Register(in= in, load= s4 , out= out4);
+
+    And(a= address[0], b= a1not, out= s51);
+    And(a= s51, b= address[2], out= s52);
+    And(a= s52, b= load, out= s5);
+    Register(in= in, load= s5 , out= out5);
+
+    And(a= a0not, b= address[1], out= s61);
+    And(a= s61, b= address[2], out= s62); 
+    And(a= s62, b= load, out= s6);
+    Register(in= in, load= s6 , out= out6);
+
+    And(a= address[0], b= address[1], out= s71);
+    And(a= s71, b= address[2], out= s72);
+    And(a= s72, b= load, out= s7);
+    Register(in= in, load= s7, out= out7);
+
+    Mux8Way16(a= out0, b= out1, c= out2, d= out3, e= out4, f= out5, g= out6, h= out7, sel= address, out= out);
+    
+}

@@ -1,0 +1,61 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/3/b/RAM4K.hdl
+/**
+ * Memory of 4K 16-bit registers.
+ * If load is asserted, the value of the register selected by
+ * address is set to in; Otherwise, the value does not change.
+ * The value of the selected register is emitted by out.
+ */
+CHIP RAM4K {
+    IN in[16], load, address[12];
+    OUT out[16];
+
+    PARTS:
+    Not(in= address[9], out= a9not );
+    Not(in= address[10], out= a10not );
+    Not(in= address[11], out= a11not );
+
+    And(a= address[9], b=load , out= lda9);
+    And(a= address[10], b=load , out= lda10);
+    And(a= address[11], b=load , out= lda11);
+    And(a= a9not, b=load , out= lda9n);
+    And(a= a10not, b=load , out= lda10n);
+    And(a= a11not, b=load , out= lda11n);
+    
+    And(a= lda9n, b= lda10n , out= ld1tmp);
+    And(a= ld1tmp, b= lda11n , out= ld1);
+    RAM512(in= in, load=ld1 , address= address[0..8], out= out0 );
+
+    And(a= lda9, b=lda10n , out= ld2tmp );
+    And(a= ld2tmp, b= lda11n , out= ld2);
+    RAM512(in= in, load=ld2 , address= address[0..8], out= out1 );
+
+    And(a= lda9n, b=lda10 , out= ld3tmp );
+    And(a= ld3tmp, b= lda11n , out= ld3);
+    RAM512(in= in, load=ld3 , address= address[0..8], out= out2 );
+
+    And(a= lda9, b=lda10 , out= ld4tmp );
+    And(a= ld4tmp, b= lda11n , out= ld4);
+    RAM512(in= in, load=ld4 , address= address[0..8], out= out3 );
+
+    And(a= lda9n, b=lda10n , out= ld5tmp );
+    And(a= ld5tmp, b= lda11 , out= ld5);
+    RAM512(in= in, load=ld5 , address= address[0..8], out= out4 );
+
+    And(a= lda9, b=lda10n , out= ld6tmp );
+    And(a= ld6tmp, b= lda11 , out= ld6);
+    RAM512(in= in, load=ld6, address= address[0..8], out= out5 );
+
+    And(a= lda9n, b=lda10 , out= ld7tmp );
+    And(a= ld7tmp, b= lda11 , out= ld7);
+    RAM512(in= in, load=ld7, address= address[0..8], out= out6 );
+
+    And(a= lda9, b=lda10 , out= ld8tmp );
+    And(a= ld8tmp, b= lda11 , out= ld8);
+    RAM512(in= in, load=ld8 , address= address[0..8], out= out7 );
+
+    Mux8Way16(a= out0, b= out1, c= out2, d= out3, e= out4, f= out5, g= out6, h= out7, sel= address[9..11], out= out);
+
+}
