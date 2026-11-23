@@ -1,0 +1,115 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/5/CPU.hdl
+/**
+ * The Hack Central Processing unit (CPU).
+ * Parses the binary code in the instruction input and executes it according to the
+ * Hack machine language specification. In the case of a C-instruction, computes the
+ * function specified by the instruction. If the instruction specifies to read a memory
+ * value, the inM input is expected to contain this value. If the instruction specifies
+ * to write a value to the memory, sets the outM output to this value, sets the addressM
+ * output to the target address, and asserts the writeM output (when writeM = 0, any
+ * value may appear in outM).
+ * If the reset input is 0, computes the address of the next instruction and sets the
+ * pc output to that value. If the reset input is 1, sets pc to 0.
+ * Note: The outM and writeM outputs are combinational: they are affected by the
+ * instruction's execution during the current cycle. The addressM and pc outputs are
+ * clocked: although they are affected by the instruction's execution, they commit to
+ * their new values only in the next cycle.
+ */
+CHIP CPU {
+
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to re-start the current
+                         // program (reset==1) or continue executing
+                         // the current program (reset==0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write to M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // address of next instruction
+
+    PARTS:
+    
+    // Choose A or C instruction
+    Mux16(a= instruction, b= outMLoopBack , sel= instruction[15], out= outInOroM);
+    
+    //Register A
+    Not(in= instruction[15], out= notCIns);
+    And(a=instruction[5],b=instruction[15],out=cInsLoadA);
+    Or(a= notCIns, b= cInsLoadA, out= loadA);
+    ARegister(in= outInOroM, load= loadA, out= outA, out[0..14]=addressM);
+
+    //Register D is loaded if the dest d2 - ins[4] is set.
+    And(a=instruction[4],b=instruction[15],out=loadD);
+    DRegister(in= outMLoopBack, load= loadD, out= outD);
+
+    //Instruction position 12 tells whether A is used or M is used in RHS of the Hack expression in hack language.
+    Mux16(a= outA, b= inM , sel= instruction[12], out= outAorM );
+
+    // ALU uses 6 control bits- instruction[6..11]
+    ALU(x= outD, y= outAorM , zx= instruction[11], nx= instruction[10] , zy= instruction[9] , ny= instruction[8], f= instruction[7], no= instruction[6] , out= outM, out=outMLoopBack , zr= zo, ng= no);
+    
+    //Write to M - M is written to if only its c instruction and d3 is set.
+    And(a=instruction[3],b=instruction[15],out=writeM);
+
+    //PC load
+    Not(in= no, out= outNotNeg);
+    Not(in= zo, out= outNotZero);
+    Xor(a= no, b= zo , out= outLessOrEqual0);
+    And(a= outNotNeg, b= outNotZero, out= outIsGreater);
+    Xor(a= outIsGreater, b= zo, out= outIsGorE);
+ 
+    //Calculate ins JGE AND JLE
+    And(a= instruction[1], b= instruction[0] , out= insJGETmp );
+
+    Not(in= insJGETmp, out= insNotJGETmp);
+    And(a= instruction[2], b= insNotJGETmp, out= insJLT);
+
+    Not(in= instruction[2], out= notLessIns);
+    And(a= insJGETmp, b= notLessIns, out= insJGE);
+
+    //Calculate JLE or JGT
+    And(a= instruction[2], b= instruction[1] , out= insJLETmp );
+    Not(in= insJLETmp, out= insNotJLETmp);
+    And(a= instruction[0], b= insNotJLETmp, out= insJGT );
+
+    Not(in= instruction[0], out= notGreaterIns );
+    And(a= insJLETmp, b= notGreaterIns , out= insJLE );
+    
+    // Caclculate JNE and JEQ
+    And(a= instruction[2], b=instruction[1] , out= insGtOrLtTmp );
+    Not(in= insGtOrLtTmp, out= insNotGtOrLtTmp);
+    And(a= insNotGtOrLtTmp, b= instruction[1], out= insJEQ );
+
+    Not(in= instruction[1], out=notEqualIns );
+    And(a= insGtOrLtTmp, b=notEqualIns , out= insJNE );
+
+    //Calculate iNS JMP and no JMP
+    And(a= instruction[2], b= instruction[1] , out= unCondJmpTmp);
+    And(a= unCondJmpTmp, b= instruction[0], out= insJMP);
+    Not(in= insJMP, out= insNoJMP);
+
+
+    And(a= insJGT, b= outIsGreater, out= o1);
+    And(a= insJLE, b= outLessOrEqual0, out= o2);
+    And(a= insJLT, b= no, out= o3 );
+    And(a= insJGE, b= outIsGorE, out= o4 );
+    And(a= insJNE, b= outNotZero, out= o5);
+    And(a= insJEQ, b= zo, out= o6);
+    And(a= insJMP, b= true, out= o7);
+    And(a= insNoJMP, b= false, out= o8);
+
+    Or(a= o1, b= o2, out= o12);
+    Or(a= o12, b= o3, out= o123);
+    Or(a= o123, b= o4, out= o1234 );
+    Or(a= o1234, b= o5 , out= upto5 );
+    Or(a= upto5, b= o6, out= upto6);
+    Or(a= upto6, b= o7 , out= upto7);
+    Or(a= upto7, b= o8, out= loadPCTMP);
+    And(a= loadPCTMP, b= instruction[15], out=loadPC );
+
+    PC(in= outA, load= loadPC, inc= true, reset=reset , out[0..14]= pc);
+}
